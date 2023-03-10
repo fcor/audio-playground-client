@@ -1,0 +1,22 @@
+/* Basic styles */
+.column{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.row{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+}
+
+/* App Styles */
+.app{
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

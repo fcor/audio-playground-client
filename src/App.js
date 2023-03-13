@@ -197,7 +197,7 @@ function App() {
       socket.disconnect();
       setIsConnected(false);
     } else {
-      socket = io("http://localhost:8080", {
+      socket = io("161.35.197.18:8080", {
         transports: ["websocket"],
       });
 

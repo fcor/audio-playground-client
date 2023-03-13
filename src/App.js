@@ -198,7 +198,7 @@ function App() {
       setIsConnected(false);
     } else {
       socket = io("161.35.197.18:8080", {
-        transports: ["websocket"],
+        transports: ["websocket", "polling"],
       });
 
       socket.on("connect", () => {

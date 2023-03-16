@@ -15,7 +15,7 @@ let rtpCapabilities;
 
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#ProducerOptions
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#transport-produce
-let params = {
+let audioParams = {
   // mediasoup params
   encodings: [],
   // https://mediasoup.org/documentation/v3/mediasoup-client/api/#ProducerCodecOptions
@@ -53,7 +53,7 @@ function App() {
         // destructure and retrieve the video track from the producer
         const { track } = consumer;
 
-        audioRef.current.srcObject = new MediaStream([track])
+        audioRef.current.srcObject = new MediaStream([track]);
 
         // the server consumer started with media paused
         // so we need to inform the server to resume
@@ -63,10 +63,10 @@ function App() {
   }
 
   async function createRecvTransport() {
-    if(!device) {
+    if (!device) {
       await createDevice(rtpCapabilities);
     }
-    
+
     await socket.emit(
       "request:webRtcTransport",
       { sender: false },
@@ -84,7 +84,6 @@ function App() {
           "connect",
           async ({ dtlsParameters }, callback, errback) => {
             try {
-              console.log("hey");
               await socket.emit("transportRecvConnect", {
                 dtlsParameters,
               });
@@ -101,7 +100,7 @@ function App() {
   }
 
   async function connectSendTransport() {
-    producer = await producerTransport.produce(params);
+    producer = await producerTransport.produce(audioParams);
 
     producer.on("trackended", () => {
       console.log("track ended");
@@ -139,8 +138,6 @@ function App() {
       );
 
       producerTransport.on("produce", async (parameters, callback, errback) => {
-        console.log(parameters);
-
         try {
           await socket.emit(
             "transportProduce",
@@ -164,7 +161,7 @@ function App() {
   async function createDevice(routerRtpCapabilities) {
     try {
       device = new mediasoupClient.Device();
-      await device.load({ routerRtpCapabilities }); 
+      await device.load({ routerRtpCapabilities });
     } catch (error) {
       if (error.name === "UnsupportedError") {
         console.error("browser not supported");
@@ -178,9 +175,9 @@ function App() {
       .then(async (stream) => {
         console.log("success stream request");
         const track = stream.getAudioTracks()[0];
-        params = {
+        audioParams = {
           track,
-          ...params,
+          ...audioParams,
         };
         await createDevice(rtpCapabilities);
         await createSendTransport();
@@ -189,7 +186,6 @@ function App() {
         console.log(error);
       });
 
-    // await connectSendTransport();
   };
 
   const handleConnect = () => {
@@ -205,9 +201,10 @@ function App() {
         setIsConnected(true);
       });
 
-      socket.on("get:rtpCapabilities", (data) => {
+      socket.on("get:startingPackage", (data) => {
         rtpCapabilities = data.rtpCapabilities;
-      })
+        handleGetAudio();
+      });
 
       socket.on("disconnect", () => {
         setIsConnected(false);
@@ -223,7 +220,6 @@ function App() {
       </Button>
       {isConnected && (
         <>
-          <Button handleClick={handleGetAudio}>Send Audio</Button>
           <Button handleClick={createRecvTransport}>Receive Audio</Button>
         </>
       )}

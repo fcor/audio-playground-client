@@ -24,15 +24,20 @@ let audioParams = {
   },
 };
 
+const tracks = [];
+
 function App() {
   const [isConnected, setIsConnected] = useState(false);
+  const [users, setUsers] = useState([]);
   const audioRef = useRef(null);
 
-  async function connectRecvTransport() {
+  async function connectRecvTransport(id) {
     await socket.emit(
       "consume",
       {
         rtpCapabilities: device.rtpCapabilities,
+        producerId: id, // ID del producer al que me quiero conectar
+        consumerTransportId: consumerTransport.id, // ID del consumer que quiero usar para recibir
       },
       async ({ params }) => {
         if (params.error) {
@@ -40,7 +45,6 @@ function App() {
           return;
         }
 
-        console.log(params);
         // then consume with the local consumer transport
         // which creates a consumer
         consumer = await consumerTransport.consume({
@@ -53,11 +57,13 @@ function App() {
         // destructure and retrieve the video track from the producer
         const { track } = consumer;
 
-        audioRef.current.srcObject = new MediaStream([track]);
+        tracks.push(track)
+
+        audioRef.current.srcObject = new MediaStream(tracks);
 
         // the server consumer started with media paused
         // so we need to inform the server to resume
-        socket.emit("consumerResume");
+        socket.emit("consumerResume", { consumerId: consumer.id });
       }
     );
   }
@@ -86,6 +92,7 @@ function App() {
             try {
               await socket.emit("transportRecvConnect", {
                 dtlsParameters,
+                id: params.id,
               });
               callback();
             } catch (error) {
@@ -93,8 +100,6 @@ function App() {
             }
           }
         );
-
-        connectRecvTransport();
       }
     );
   }
@@ -114,19 +119,20 @@ function App() {
   }
 
   async function createSendTransport() {
-    socket.emit("request:webRtcTransport", { sender: true }, (response) => {
-      if (response.params.error) {
-        console.log(response.params.error);
+    socket.emit("request:webRtcTransport", { sender: true }, ({ params }) => {
+      if (params.error) {
+        console.log(params.error);
         return;
       }
 
-      producerTransport = device.createSendTransport(response.params);
+      producerTransport = device.createSendTransport(params);
 
       producerTransport.on(
         "connect",
         async ({ dtlsParameters }, callback, errback) => {
           try {
             await socket.emit("transportConnect", {
+              id: params.id,
               dtlsParameters,
             });
 
@@ -145,6 +151,7 @@ function App() {
               kind: parameters.kind,
               rtpParameters: parameters.rtpParameters,
               appData: parameters.appData,
+              id: params.id,
             },
             ({ id }) => {
               callback({ id });
@@ -169,6 +176,15 @@ function App() {
     }
   }
 
+  const handleReceiveAudio = async () => {
+    users.forEach((user) => {
+      if (user.id !== socket.id) {
+        console.log("Trying to connect to: ", user.id);
+        connectRecvTransport(user.producerId);
+      }
+    });
+  };
+
   const handleGetAudio = async () => {
     navigator.mediaDevices
       .getUserMedia({ video: false, audio: true })
@@ -179,13 +195,17 @@ function App() {
           track,
           ...audioParams,
         };
+
+        // Producing
         await createDevice(rtpCapabilities);
         await createSendTransport();
+
+        // Consuming
+        await createRecvTransport();
       })
       .catch((error) => {
         console.log(error);
       });
-
   };
 
   const handleConnect = () => {
@@ -202,7 +222,9 @@ function App() {
       });
 
       socket.on("get:startingPackage", (data) => {
+        console.log(data);
         rtpCapabilities = data.rtpCapabilities;
+        setUsers(data.users);
         handleGetAudio();
       });
 
@@ -220,11 +242,11 @@ function App() {
       </Button>
       {isConnected && (
         <>
-          <Button handleClick={createRecvTransport}>Receive Audio</Button>
+          <Button handleClick={handleReceiveAudio}>Receive Audio</Button>
         </>
       )}
       <figure>
-        <figcaption>Listen to the Shit:</figcaption>
+        {/* <figcaption>Listen to the Shit:</figcaption> */}
         <audio autoPlay ref={audioRef}></audio>
       </figure>
     </div>

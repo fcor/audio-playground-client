@@ -228,6 +228,14 @@ function App() {
         handleGetAudio();
       });
 
+      socket.on("newUser", (data) => {
+        console.log(data);
+        const newUsersArr = [...users, data];
+        setUsers(newUsersArr);
+        console.log(users)
+      });
+
+
       socket.on("disconnect", () => {
         setIsConnected(false);
       });

@@ -12,6 +12,7 @@ let producer;
 let consumer;
 let consumerTransport;
 let rtpCapabilities;
+let users;
 
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#ProducerOptions
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#transport-produce
@@ -28,7 +29,6 @@ const tracks = [];
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
-  const [users, setUsers] = useState([]);
   const audioRef = useRef(null);
 
   async function connectRecvTransport(id) {
@@ -178,7 +178,10 @@ function App() {
   }
 
   const handleReceiveAudio = async () => {
+    console.log("Handle recv audio - num users: ", users.length);
     users.forEach((user) => {
+      console.log("My id: ", socket.id);
+      console.log("USR id: ", user.id);
       if (user.id !== socket.id) {
         console.log("Trying to connect to: ", user.id);
         connectRecvTransport(user.producerId);
@@ -225,13 +228,12 @@ function App() {
       socket.on("get:startingPackage", (data) => {
         console.log(data);
         rtpCapabilities = data.rtpCapabilities;
-        setUsers(data.users);
+        users = data.users;
         handleGetAudio();
       });
 
       socket.on("newUser", (data) => {
-        const newUsersArr = [...users, data];
-        setUsers(newUsersArr);
+        users.push(data);
         console.log("Trying to connect to: ", data.id);
         connectRecvTransport(data.producerId);
       });

@@ -57,7 +57,7 @@ function App() {
         // destructure and retrieve the video track from the producer
         const { track } = consumer;
 
-        tracks.push(track)
+        tracks.push(track);
 
         audioRef.current.srcObject = new MediaStream(tracks);
 
@@ -100,6 +100,7 @@ function App() {
             }
           }
         );
+        handleReceiveAudio();
       }
     );
   }
@@ -229,12 +230,11 @@ function App() {
       });
 
       socket.on("newUser", (data) => {
-        console.log(data);
         const newUsersArr = [...users, data];
         setUsers(newUsersArr);
-        console.log(users)
+        console.log("Trying to connect to: ", data.id);
+        connectRecvTransport(data.producerId);
       });
-
 
       socket.on("disconnect", () => {
         setIsConnected(false);
@@ -248,11 +248,11 @@ function App() {
       <Button handleClick={handleConnect}>
         {isConnected ? "Disconnect" : "Connect"}
       </Button>
-      {isConnected && (
+      {/* {isConnected && (
         <>
           <Button handleClick={handleReceiveAudio}>Receive Audio</Button>
         </>
-      )}
+      )} */}
       <figure>
         {/* <figcaption>Listen to the Shit:</figcaption> */}
         <audio autoPlay ref={audioRef}></audio>

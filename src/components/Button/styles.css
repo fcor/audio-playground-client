@@ -24,4 +24,5 @@
 
 .btn:disabled {
   transform: scale(1);
+  background-color: #33b18f ;
 }

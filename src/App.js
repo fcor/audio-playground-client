@@ -14,6 +14,12 @@ let consumerTransport;
 let rtpCapabilities;
 let users;
 
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const user = urlParams.get("user") || "guest";
+
+const isAdmin = user === "admin";
+
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#ProducerOptions
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#transport-produce
 let audioParams = {
@@ -29,6 +35,8 @@ const tracks = [];
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isMutedByAdmin, setIsMutedByAdmin] = useState(false);
   const audioRef = useRef(null);
 
   async function connectRecvTransport(id) {
@@ -241,8 +249,38 @@ function App() {
       socket.on("disconnect", () => {
         setIsConnected(false);
       });
+
+      socket.on("mute", () => {
+        setIsMutedByAdmin(true);
+        setIsPaused(true);
+        producer.pause();
+        // consumer.pause();
+      });
+
+      socket.on("unmute", () => {
+        setIsMutedByAdmin(false);
+        setIsPaused(false);
+        producer.resume();
+        // consumer.pause();
+      });
     }
   };
+
+  const handlePause = () => {
+    if (isPaused) {
+      producer.resume();
+      socket.emit("producerResume", { id: producer.id });
+      setIsPaused(false);
+    } else {
+      producer.pause();
+      socket.emit("producerPause", { id: producer.id });
+      setIsPaused(true);
+    }
+  };
+
+  const handleMuteSession = () => {
+    socket.emit("toggleMuteSession");
+  }
 
   return (
     <div className="app">
@@ -250,13 +288,24 @@ function App() {
       <Button handleClick={handleConnect}>
         {isConnected ? "Disconnect" : "Connect"}
       </Button>
-      {/* {isConnected && (
+      {isConnected && (
         <>
-          <Button handleClick={handleReceiveAudio}>Receive Audio</Button>
+          <Button isDisabled={isMutedByAdmin} handleClick={handlePause}>
+            {isPaused ? "Unmute" : "Mute"}
+          </Button>
         </>
-      )} */}
+      )}
+
+      {isAdmin && isConnected && (
+        <>
+          <Button handleClick={handleMuteSession}>
+            {isPaused ? "Unmute session" : "Mute session"}
+          </Button>
+        </>
+      )}
+
+      {isMutedByAdmin && <p>You have been muted by the admin</p>}
       <figure>
-        {/* <figcaption>Listen to the Shit:</figcaption> */}
         <audio autoPlay ref={audioRef}></audio>
       </figure>
     </div>
@@ -264,3 +313,5 @@ function App() {
 }
 
 export default App;
+
+// Falta el boton de mute si es admin - y vale la pena poner al admin el boton de iniciar audio
